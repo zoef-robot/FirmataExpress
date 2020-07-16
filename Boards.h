@@ -996,6 +996,9 @@ writePort(port, value, bitmask):  Write an 8 bit port.
 
 
 // STM32 based boards
+// For the blackpill we need to offset A0 -> (A0+5). See discussion at https://github.com/MrYsLab/pymata4/issues/17
+// This should probably be fixed at stm32duino, but I ccurrently have no clue to reproduce without firmata to
+// create a bug.
 #elif defined(ARDUINO_ARCH_STM32)
 #define TOTAL_ANALOG_PINS       NUM_ANALOG_INPUTS
 #define TOTAL_PINS              NUM_DIGITAL_PINS
@@ -1003,7 +1006,7 @@ writePort(port, value, bitmask):  Write an 8 bit port.
 #define VERSION_BLINK_PIN       LED_BUILTIN
 // PIN_SERIALY_RX/TX defined in the variant.h
 #define IS_PIN_DIGITAL(p)       (digitalPinIsValid(p) && !pinIsSerial(p))
-#define IS_PIN_ANALOG(p)        ((p >= A0) && (p < (A0 + TOTAL_ANALOG_PINS)) && !pinIsSerial(p))
+#define IS_PIN_ANALOG(p)        ((p >= (A0+5)) && (p < ((A0+5) + TOTAL_ANALOG_PINS)) && !pinIsSerial(p))
 #define IS_PIN_PWM(p)           (IS_PIN_DIGITAL(p) && digitalPinHasPWM(p))
 #define IS_PIN_SERVO(p)         IS_PIN_DIGITAL(p)
 #define IS_PIN_I2C(p)           (IS_PIN_DIGITAL(p) && digitalPinHasI2C(p))
@@ -1016,7 +1019,7 @@ writePort(port, value, bitmask):  Write an 8 bit port.
 #define PIN_TO_TONE(p)          PIN_TO_DIGITAL(p)
 #define PIN_TO_SONAR(p)         PIN_TO_DIGITAL(p)
 #define PIN_TO_DIGITAL(p)       (p)
-#define PIN_TO_ANALOG(p)        (p-A0)
+#define PIN_TO_ANALOG(p)        (p-(A0+5))
 #define PIN_TO_PWM(p)           (p)
 #define PIN_TO_SERVO(p)         (p)
 #define PIN_TO_DHT(p)           PIN_TO_DIGITAL(p)
