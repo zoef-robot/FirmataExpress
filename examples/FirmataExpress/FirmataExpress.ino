@@ -1066,8 +1066,10 @@ void setup()
   // Temporary fix to make sure the motor is not moving when connecting from pymata.
   // Should not be neede anymore when https://github.com/stm32duino/Arduino_Core_STM32/issues/1082
   // is fixed.
+  #if defined(ARDUINO_ARCH_STM32)
   digitalWrite(PA15, LOW);
   digitalWrite(PB4, LOW);
+  #endif
   
   Firmata.setFirmwareVersion(FIRMATA_FIRMWARE_MAJOR_VERSION, FIRMATA_FIRMWARE_MINOR_VERSION);
 
