@@ -85,6 +85,7 @@
 #define OPTENC_SET_MODE 1
 #define OPTENC_SET_DIR 2
 #define OPTENC_RESET 3
+#define MAX_OPTENCS 4
 
 
 /*==============================================================================
@@ -1169,11 +1170,11 @@ void setup()
 
   // to use a port other than Serial, such as Serial1 on an Arduino Leonardo or Mega,
   // Call begin(baud) on the alternate serial port and pass it to Firmata to begin like this:
-   Serial2.begin(115200);
-   Firmata.begin(Serial1);
+  // Serial2.begin(115200);
+  // Firmata.begin(Serial1);
   // However do not do this if you are using SERIAL_MESSAGE
 
-//  Firmata.begin(115200);
+  Firmata.begin(1000000);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for ATmega32u4-based boards and Arduino 101
   }
