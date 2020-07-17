@@ -1271,11 +1271,11 @@ void loop()
       // fetch speed in RPM
       long optEncReturnVal = 0;
 
-      if(returnPosition) {
+      //if(returnPosition) {
         optEncReturnVal = optEnc[i]->getPosition();
-      } else {
-        optEncReturnVal = optEnc[i]->getSpeed();
-      }
+      //} else {
+      //  optEncReturnVal = optEnc[i]->getSpeed();
+      //}
       tachPin = optEnc[i]->getPin();
 
       Firmata.write(START_SYSEX);
