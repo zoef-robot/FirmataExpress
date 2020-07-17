@@ -1282,10 +1282,10 @@ void loop()
       Firmata.write(START_SYSEX);
       Firmata.write(OPTENC_DATA);
       Firmata.write(tachPin);
-      Firmata.write(optEncReturnVal & 0xFF);
-      Firmata.write((optEncReturnVal >> 7) & 0xFF);
-      Firmata.write((optEncReturnVal >> 14) & 0xFF);
-      Firmata.write((optEncReturnVal >> 21) & 0xFF);
+      Firmata.write(optEncReturnVal & 0x7F);
+      Firmata.write((optEncReturnVal >> 7) & 0x7F);
+      Firmata.write((optEncReturnVal >> 14) & 0x7F);
+      Firmata.write((optEncReturnVal >> 21) & 0x7F);
       Firmata.write(END_SYSEX);
     }
 
