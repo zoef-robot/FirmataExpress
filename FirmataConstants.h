@@ -74,6 +74,8 @@ static const int SONAR_DATA =              0x63; // sonar data reply
 static const int DHT_CONFIG =              0x64;
 static const int DHT_DATA =                0x65;
 static const int SERVO_CONFIG =            0x70; // set max angle, minPulse, maxPulse, freq
+static const int OPTENC_REQUEST =          0x66; // carries configuration instructions
+static const int OPTENC_DATA =             0x67; // carries response data reply
 static const int STRING_DATA =             0x71; // a string message with 14-bits per char
 static const int STEPPER_DATA =            0x72; // control a stepper motor
 static const int ONEWIRE_DATA =            0x73; // send an OneWire read/write/reset/select/skip/search request
@@ -112,6 +114,7 @@ static const int PIN_MODE_TONE =           0x0D; // pin configured for tone
 static const int PIN_MODE_PIXY =           0x0E; // pin configured for pixy spi
 static const int PIN_MODE_DHT =            0x0F; // pin configured for DHT
 static const int PIN_MODE_IGNORE =         0x7F; // pin configured to be ignored by digitalWrite and capabilityResponse
+static const int PIN_MODE_OPTENC =         0x17;
 
 static const int TOTAL_PIN_MODES =         17;
 

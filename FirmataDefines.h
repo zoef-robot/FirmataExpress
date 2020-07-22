@@ -252,6 +252,18 @@
 #endif
 #define SONAR_DATA              firmata::SONAR_DATA // sonar reply
 
+
+#ifdef OPTENC_REQUEST
+#undef OPTENC_REQUEST
+#endif
+#define OPTENC_REQUEST          firmata::OPTENC_REQUEST // optical encoder request
+
+
+#ifdef OPTENC_DATA
+#undef OPTENC_DATA
+#endif
+#define OPTENC_DATA          firmata::OPTENC_DATA // optical encoder response
+
 #ifdef DHT_CONFIG
 #undef DHT_CONFIG
 #endif
@@ -342,6 +354,11 @@
 #undef PIN_MODE_PIXY
 #endif
 #define PIN_MODE_PIXY           firmata::PIN_MODE_PIXY // pin configured pixy
+
+#ifdef PIN_MODE_OPTENC
+#undef PIN_MODE_OPTENC
+#endif
+#define PIN_MODE_OPTENC           firmata::PIN_MODE_OPTENC // pin configured pixy
 
 #ifdef PIN_MODE_IGNORE
 #undef PIN_MODE_IGNORE

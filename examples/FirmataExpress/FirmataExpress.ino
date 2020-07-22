@@ -42,6 +42,7 @@
 #if defined(__AVR__)
 #include <avr/wdt.h>
 #endif
+#include <OpticalEncoder.h>
 
 #define ARDUINO_INSTANCE_ID         1
 
@@ -79,6 +80,13 @@
 #define DHTLIB_ERROR_CHECKSUM   -1
 #define DHTLIB_OK                0
 #define DHTLIB_TIMEOUT (F_CPU/40000)
+
+#define OPTENC_CONFIGURE 0
+#define OPTENC_SET_MODE 1
+#define OPTENC_SET_DIR 2
+#define OPTENC_RESET 3
+#define MAX_OPTENCS 4
+
 
 /*==============================================================================
    GLOBAL VARIABLES
@@ -195,6 +203,27 @@ int dhtLoopCounter = 0;
 //uint8_t _pin;
 // uint8_t _wakeupDelay;
 uint8_t _bits[5];  // buffer to receive data
+
+
+OpticalEncoder *optEnc[MAX_OPTENCS]; // enocder container
+
+typedef void (*intCB)(void); //lambda definition for interupt callback
+
+intCB interruptMap[MAX_OPTENCS] = { // encoder callback method container
+  []{optEnc[0]->handleInterrupt();},
+  []{optEnc[1]->handleInterrupt();},
+  []{optEnc[2]->handleInterrupt();},
+  []{optEnc[3]->handleInterrupt();}
+};
+
+intCB callbackMethod;
+
+int32_t optEncPos;
+long optEncSpeed;
+uint8_t numActiveOptEncoders = 0 ; // number of Optical Encoders attached
+uint8_t tachPin ;
+uint8_t nextOptEnc = 0;
+bool returnPosition = false;
 
 /*==============================================================================
    FUNCTIONS
@@ -449,6 +478,9 @@ void setPinModeCallback(byte pin, int mode)
       break ;
     case PIN_MODE_STEPPER:
       Firmata.setPinMode(pin, PIN_MODE_STEPPER);
+      break ;
+    case PIN_MODE_OPTENC:
+      Firmata.setPinMode(pin, PIN_MODE_OPTENC);
       break ;
     default:
       Firmata.sendString("Unknown pin mode"); // TODO: put error msgs in EEPROM
@@ -931,58 +963,103 @@ void sysexCallback(byte command, byte argc, byte *argv)
       }
       break ;
     case DHT_CONFIG:
-      int DHT_Pin = argv[0] ;
-      int DHT_type = argv[1];
-
-      if ( numActiveDHTs < MAX_DHTS)
       {
-        if (DHT_type == 22)
-        {
-          DHT_WakeUpDelay[numActiveDHTs] = 1;
-        }
-        else if (DHT_type == 11)
-        {
-          DHT_WakeUpDelay[numActiveDHTs] = 18;
-        }
-        else
-        {
-          Firmata.sendString("ERROR: UNKNOWN SENSOR TYPE, VALID SENSORS ARE 11, 22");
-          break;
-        }
-        // test the sensor
-        DHT_PinNumbers[numActiveDHTs] = DHT_Pin ;
-        DHT_TYPE[numActiveDHTs] = DHT_type;
+        int DHT_Pin = argv[0] ;
+        int DHT_type = argv[1];
 
-        setPinModeCallback(DHT_Pin, PIN_MODE_DHT);
-        int rv = readDhtSensor(numActiveDHTs);
-        if (rv == DHTLIB_OK)
+        if ( numActiveDHTs < MAX_DHTS)
         {
-          numActiveDHTs++ ;
-          dhtNumLoops = dhtNumLoops / numActiveDHTs ;
-          // all okay
-        }
-        else
-        {
-          // send the message back with an error status
-          Firmata.write(START_SYSEX);
-          Firmata.write(DHT_DATA) ;
-          Firmata.write(DHT_Pin) ;
-          Firmata.write(DHT_type) ;
-          for (uint8_t i = 0; i < sizeof(_bits) - 1; ++i) {
-            Firmata.write(_bits[i] & 0x7f);
-            Firmata.write(_bits[i] >> 7 & 0x7f);
+          if (DHT_type == 22)
+          {
+            DHT_WakeUpDelay[numActiveDHTs] = 1;
           }
-          Firmata.write(abs(rv));
-          Firmata.write(1);
-          Firmata.write(END_SYSEX);
-        }
-        break ;
-      }
-      else {
-        Firmata.sendString("DHT_CONFIG Error: Exceeded number of supported DHT devices");
-      }
-      break;
+          else if (DHT_type == 11)
+          {
+            DHT_WakeUpDelay[numActiveDHTs] = 18;
+          }
+          else
+          {
+            Firmata.sendString("ERROR: UNKNOWN SENSOR TYPE, VALID SENSORS ARE 11, 22");
+            break;
+          }
+          // test the sensor
+          DHT_PinNumbers[numActiveDHTs] = DHT_Pin ;
+          DHT_TYPE[numActiveDHTs] = DHT_type;
 
+          setPinModeCallback(DHT_Pin, PIN_MODE_DHT);
+          int rv = readDhtSensor(numActiveDHTs);
+          if (rv == DHTLIB_OK)
+          {
+            numActiveDHTs++ ;
+            dhtNumLoops = dhtNumLoops / numActiveDHTs ;
+            // all okay
+          }
+          else
+          {
+            // send the message back with an error status
+            Firmata.write(START_SYSEX);
+            Firmata.write(DHT_DATA) ;
+            Firmata.write(DHT_Pin) ;
+            Firmata.write(DHT_type) ;
+            for (uint8_t i = 0; i < sizeof(_bits) - 1; ++i) {
+              Firmata.write(_bits[i] & 0x7f);
+              Firmata.write(_bits[i] >> 7 & 0x7f);
+            }
+            Firmata.write(abs(rv));
+            Firmata.write(1);
+            Firmata.write(END_SYSEX);
+          }
+          break ;
+        }
+        else {
+          Firmata.sendString("DHT_CONFIG Error: Exceeded number of supported DHT devices");
+        }
+        break;
+      }
+    case OPTENC_REQUEST:
+      {
+        if(argv[0] == OPTENC_CONFIGURE) {
+          if(argc == 4) {
+            // create new pointer to object
+            optEnc[numActiveOptEncoders] = new OpticalEncoder();
+
+            // lookup corresponding callback method
+            callbackMethod = interruptMap[numActiveOptEncoders];
+
+            // link new encoder object to callback method + set parameters
+            optEnc[numActiveOptEncoders]->setup(argv[1], callbackMethod, argv[2], argv[3]);
+
+            // increment number of active encoders
+            numActiveOptEncoders++;
+          } else {
+            // Firmata.sendString("Wrong Number of Arguments in CONFIGURE");
+          }
+        }
+        else if (argv[0] == OPTENC_SET_MODE) {
+          if(argc == 2) {
+            returnPosition = argv[1];
+          } else {
+            // Firmata.sendString("Wrong Number of Arguments in SET_MODE");
+          }
+        }
+
+        else if (argv[0] == OPTENC_SET_DIR) {
+          if(argc == 3) {
+            optEnc[argv[1]]->setDirection(argv[2]);
+          } else {
+            // Firmata.sendString("Wrong Number of Arguments in SET_DIR");
+          }
+        }
+
+        else if(argv[0] == OPTENC_RESET) {
+          if(argc == 2) {
+            optEnc[argv[1]]->resetPosition();
+          } else {
+            // Firmata.sendString("Wrong Number of Arguments");
+          }
+        }
+        break;
+      }
   }
 }
 
@@ -1040,6 +1117,15 @@ void systemResetCallback()
   }
   numActiveSonars = 0 ;
 
+  // clear optical encoders
+  numActiveOptEncoders = 0;
+  for (int i = 0; i < MAX_OPTENCS; ++i) {
+    if ( optEnc[i] ) {
+      optEnc[i] = NULL;
+    }
+  }
+
+
   // by default, do not report any analog inputs
   analogInputsToReport = 0;
 
@@ -1084,11 +1170,11 @@ void setup()
 
   // to use a port other than Serial, such as Serial1 on an Arduino Leonardo or Mega,
   // Call begin(baud) on the alternate serial port and pass it to Firmata to begin like this:
-  // Serial1.begin(115200);
+  // Serial2.begin(115200);
   // Firmata.begin(Serial1);
   // However do not do this if you are using SERIAL_MESSAGE
 
-  Firmata.begin(115200);
+  Firmata.begin(1000000);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for ATmega32u4-based boards and Arduino 101
   }
@@ -1179,6 +1265,30 @@ void loop()
         Firmata.write(END_SYSEX);
       }
     }
+
+    // support for optical encoder
+    for (int i=0; i<numActiveOptEncoders; ++i)
+    {
+      // fetch speed in RPM
+      long optEncReturnVal = 0;
+
+      //if(returnPosition) {
+        optEncReturnVal = optEnc[i]->getPosition();
+      //} else {
+      //  optEncReturnVal = optEnc[i]->getSpeed();
+      //}
+      tachPin = optEnc[i]->getPin();
+
+      Firmata.write(START_SYSEX);
+      Firmata.write(OPTENC_DATA);
+      Firmata.write(tachPin);
+      Firmata.write(optEncReturnVal & 0x7F);
+      Firmata.write((optEncReturnVal >> 7) & 0x7F);
+      Firmata.write((optEncReturnVal >> 14) & 0x7F);
+      Firmata.write((optEncReturnVal >> 21) & 0x7F);
+      Firmata.write(END_SYSEX);
+    }
+
 
     /* ANALOGREAD - do all analogReads() at the configured sampling interval */
     for (pin = 0; pin < TOTAL_PINS; pin++) {
